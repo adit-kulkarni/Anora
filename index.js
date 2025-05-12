@@ -4,30 +4,42 @@ dotenv.config();
 const Speaker = require("speaker");
 const record = require("node-record-lpcm16");
 
-const check = "WHAT"
+const sessionUpdate = {
+  type: "session.update",
+  session: {
+    turn_detection: { type: "server_vad" },
+    input_audio_format: "g711_ulaw",
+    output_audio_format: "g711_ulaw",
+    input_audio_transcription: {
+      model: "whisper-1"
+    },
+    voice: "alloy",
+    instructions: "You are a helpful assistant.",
+    modalities: ["text", "audio"],
+    temperature: 0.8,
+  },
+};
 
 function startRecording() {
   return new Promise((resolve, reject) => {
     console.log("Speak to send a message to the assistant. Press Enter when done.");
-    // Create a buffer to hold the audio data
     const audioData = [];
-    // Start recording in PCM16 format
     const recordingStream = record.record({
-      sampleRate: 16000, // 16kHz sample rate (standard for speech recognition)
-      threshold: 0, // Start recording immediately
+      sampleRate: 16000,
+      threshold: 0,
       verbose: false,
-      recordProgram: "sox", // Specify the program
+      recordProgram: "sox", 
     });
-    // Capture audio data
+
     recordingStream.stream().on("data", (chunk) => {
       audioData.push(chunk); // Store the audio chunks
     });
-    // Handle errors in the recording stream
+
     recordingStream.stream().on("error", (err) => {
       console.error("Error in recording stream:", err);
       reject(err);
     });
-    // Set up standard input to listen for the Enter key press
+
     process.stdin.resume(); // Start listening to stdin
     process.stdin.on("data", () => {
       console.log("Recording stopped.");
@@ -60,29 +72,7 @@ function main() {
     });
 
     async function handleOpen() {
-        // Define what happens when the connection is opened
-        // ws.send(
-        //     JSON.stringify({
-        //       type: "start",
-        //       config: {
-        //         // Enable audio response
-        //         response_format: {
-        //           type: "audio",
-        //         },
-        //         // Enable text response as well
-        //         text: {
-        //           include: true,
-        //         },
-        //         // Enable transcription of what you say
-        //         transcription: {
-        //           enabled: true,
-        //         },
-        //       },
-        //       accept: ["audio", "text"], // We want both types of responses
-        //     })
-        //   );
-        
-        
+        ws.send(JSON.stringify(sessionUpdate));
         const base64AudioData = await startRecording();
         const createConversationEvent = {
           type: "conversation.item.create",
@@ -117,7 +107,17 @@ function main() {
             // Print partial or final transcript from user
             console.log("📝 Transcription:", message.delta);
             break;
-            
+          
+          case "transcription_session.update":
+            console.log("🔊 Transcription Session Update:", message);
+            break;
+          
+          case "conversation.item.input_audio_transcription.completed":
+            console.log(
+              `User input transcript: ${message.transcript}`
+            );
+            break;
+
           case "conversation.item.input_audio_transcription.delta":
             console.log("🗣️ You said:", message.transcript);
             break;

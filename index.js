@@ -4,28 +4,42 @@ dotenv.config();
 const Speaker = require("speaker");
 const record = require("node-record-lpcm16");
 
+
+
 const sessionUpdate = {
-  type: "session.update",
-  session: {
-    turn_detection: { type: "server_vad" },
-    input_audio_format: "g711_ulaw",
-    output_audio_format: "g711_ulaw",
-    input_audio_transcription: {
-      model: "whisper-1"
+  
+  'type': 'session.update',
+  'session': {
+    'modalities': ['text', 'audio'],
+    'instructions': 'prompt',
+
+    'input_audio_format': 'pcm16',
+    'output_audio_format': 'pcm16',
+
+    'input_audio_transcription': {
+      'model': 'whisper-1',
+      'language': 'en'
     },
-    voice: "alloy",
-    instructions: "You are a helpful assistant.",
-    modalities: ["text", "audio"],
-    temperature: 0.8,
+    'turn_detection': {
+      'type': 'server_vad',
+      'threshold': 0.5,
+      'prefix_padding_ms': 300,
+      'silence_duration_ms': 1000,
+      'create_response': true,
+    },
+    'temperature': 0.8,
+    'max_response_output_tokens': 4000,
   },
-};
+}
+
+
 
 function startRecording() {
   return new Promise((resolve, reject) => {
     console.log("Speak to send a message to the assistant. Press Enter when done.");
     const audioData = [];
     const recordingStream = record.record({
-      sampleRate: 16000,
+      sampleRate: 24000,
       threshold: 0,
       verbose: false,
       recordProgram: "sox", 
@@ -54,17 +68,16 @@ function startRecording() {
   });
 };
 
-
-
 function main() {
   // Connect to the API
-  const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01";
+  const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
   const ws = new WebSocket(url, {
       headers: {
           "Authorization": "Bearer " + process.env.OPENAI_API_KEY,
           "OpenAI-Beta": "realtime=v1",
+        }
       },
-  });
+  );
     const speaker = new Speaker({
         channels: 1, // Mono or Stereo
         bitDepth: 16, // PCM16 (16-bit audio)
@@ -73,6 +86,7 @@ function main() {
 
     async function handleOpen() {
         ws.send(JSON.stringify(sessionUpdate));
+
         const base64AudioData = await startRecording();
         const createConversationEvent = {
           type: "conversation.item.create",
@@ -101,13 +115,33 @@ function main() {
 
       function handleMessage(messageStr) {
         const message = JSON.parse(messageStr);
-      
+
         switch (message.type) {
+          case "error":
+            console.log("🚨 Error:", message);
+            break;
+          
+          case "session.created":
+            console.log("🔊 Session created:", message);
+            break;
+          
           case "response.audio_transcript.delta":
             // Print partial or final transcript from user
             console.log("📝 Transcription:", message.delta);
             break;
-          
+
+          case "conversation.item.created":
+            console.log(message);
+            console.log("MESSAGE CONTENT:",message.item.content[0]);
+            break;
+          case "session.updated":
+            console.log("🔊 Session Updated:", message);
+            break;
+
+          case "conversation.item.input_audio_transcription.completed":
+            console.log("🗣️ You said:", message.transcript);
+            break;
+
           case "transcription_session.update":
             console.log("🔊 Transcription Session Update:", message);
             break;

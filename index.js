@@ -57,30 +57,7 @@ function main() {
         sampleRate: 24000, // Common sample rate (44.1kHz)
     });
 
-    async function handleOpen() {
-        // Define what happens when the connection is opened
-        // ws.send(
-        //     JSON.stringify({
-        //       type: "start",
-        //       config: {
-        //         // Enable audio response
-        //         response_format: {
-        //           type: "audio",
-        //         },
-        //         // Enable text response as well
-        //         text: {
-        //           include: true,
-        //         },
-        //         // Enable transcription of what you say
-        //         transcription: {
-        //           enabled: true,
-        //         },
-        //       },
-        //       accept: ["audio", "text"], // We want both types of responses
-        //     })
-        //   );
-        
-        
+    async function handleOpen() {        
         const base64AudioData = await startRecording();
         const createConversationEvent = {
           type: "conversation.item.create",

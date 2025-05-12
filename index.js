@@ -4,6 +4,8 @@ dotenv.config();
 const Speaker = require("speaker");
 const record = require("node-record-lpcm16");
 
+const check = "WHAT"
+
 function startRecording() {
   return new Promise((resolve, reject) => {
     console.log("Speak to send a message to the assistant. Press Enter when done.");
